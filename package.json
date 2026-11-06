@@ -9,13 +9,57 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
   "contributes": {
+    "configuration": {
+      "title": "NoneBot2 Locales Viewer",
+      "properties": {
+        "nonebotLocalesViewer.localeDirectory": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to the locale directory, relative to each workspace folder. Leave empty to detect a static `locales_init(...)` path automatically; `assets/lang` is used as a final fallback."
+        },
+        "nonebotLocalesViewer.language": {
+          "type": "string",
+          "default": "zh_CN",
+          "markdownDescription": "Locale to preview. Missing locale files or keys display `NO TRANSLATION!!!`."
+        },
+        "nonebotLocalesViewer.replyFunctions": {
+          "type": "array",
+          "default": [
+            "reply"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Function names whose first string argument is a localization key."
+        },
+        "nonebotLocalesViewer.displayMode": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "after"
+          ],
+          "default": "inline",
+          "markdownDescription": "`inline` replaces the key visually; `after` keeps the key and appends its translation."
+        },
+        "nonebotLocalesViewer.previewColor": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional CSS color for translated previews. Leave empty to use the active theme's string color."
+        }
+      }
+    },
     "commands": [
       {
-        "command": "vscode-nonebot-locales-viewer.helloWorld",
-        "title": "Hello World"
+        "command": "nonebotLocalesViewer.refresh",
+        "title": "NoneBot2 Locales Viewer: Refresh previews"
       }
     ]
   },

@@ -1,71 +1,34 @@
-# vscode-nonebot-locales-viewer README
+# NoneBot2 Locales Viewer
 
-This is the README for your extension "vscode-nonebot-locales-viewer". After writing up a brief description, we recommend including the following sections.
+> 用于显示 [nonebot-plugin-locales](https://github.com/goldsheep3/nonebot-plugin-locales) 的本地化文本预览的 VSCode 扩展。
 
-## Features
+## 快速开始
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+1. 安装扩展
+2. 打开使用了 nonebot-plugin-locales 的工程文件
+3. 打开 Python 文件后，`reply("rc.help")` 这类调用中的本地化键会显示为对应译文；源码不会被修改。
 
-For example if there is an image subfolder under your extension project workspace:
+默认会尝试以静态识别 `locales_init(...)` 指向的语言目录；无法识别时，会回退到工作区的 `assets/lang` 目录。
+将光标置于翻译键上时，会暂时显示原始键，便于编辑；鼠标悬停可查看键名与预览文本。
 
-\!\[feature X\]\(images/feature-x.png\)
+若当前预览的语言代码中没有该键的文本，会显示 `NO TRANSLATION!!!`。
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## 配置项
 
-## Requirements
+| 设置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `nonebotLocalesViewer.localeDirectory` | 空 | 语言目录，相对工作区根目录。留空时自动识别 `locales_init(...)`；手动设置优先级最高。 |
+| `nonebotLocalesViewer.language` | `zh_CN` | 用于预览的语言代码。支持的情况依托于所在的 nonebot-plugin-locales 插件。 |
+| `nonebotLocalesViewer.replyFunctions` | `["reply"]` | 需要识别的本地化函数名；函数的第一个字符串参数视为键。 |
+| `nonebotLocalesViewer.displayMode` | `inline` | `inline` 视觉替换键；`after` 在键后显示译文。 |
+| `nonebotLocalesViewer.previewColor` | 空 | 预览文字颜色。留空时使用当前主题的字符串色；可填写 CSS 颜色值，如 `#98c379`。 |
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+可执行命令面板中的 `NoneBot2 Locales Viewer: Refresh previews` 手动刷新。
 
-## Extension Settings
+## 更新历史
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+### 2026-11-06 v0.1.0
 
-For example:
+*Support: nonebot-plugin-locales@v0.2.0*
 
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+初始化仓库并实现基础显示功能。
