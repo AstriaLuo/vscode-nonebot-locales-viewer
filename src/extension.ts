@@ -16,15 +16,18 @@ const LANGUAGE_ALIASES: Record<string, string> = {
 class LocalePreviewManager implements vscode.Disposable {
 	private readonly inlineDecoration = vscode.window.createTextEditorDecorationType({ textDecoration: 'none; display: none;' });
 	private readonly afterDecoration = vscode.window.createTextEditorDecorationType({});
+	private readonly languageStatus = vscode.window.createStatusBarItem('nonebotLocalesViewer.language', vscode.StatusBarAlignment.Right, 100);
 	private readonly disposables: vscode.Disposable[] = [];
 	private readonly detectedLocaleDirectories = new Map<string, string | undefined>();
 
-	constructor() {
+	constructor(private readonly context: vscode.ExtensionContext) {
+		this.languageStatus.command = 'nonebotLocalesViewer.selectLanguage';
+		this.languageStatus.tooltip = 'NoneBot2 Locales Viewer: Select preview language';
 		const watcher = vscode.workspace.createFileSystemWatcher('**/*.{yaml,yml}');
 		this.disposables.push(watcher, watcher.onDidChange(() => this.refresh()), watcher.onDidCreate(() => this.refresh()), watcher.onDidDelete(() => this.refresh()), vscode.window.onDidChangeActiveTextEditor(() => this.refresh()), vscode.window.onDidChangeTextEditorVisibleRanges(() => this.refresh()), vscode.window.onDidChangeTextEditorSelection((event) => this.updateEditor(event.textEditor)), vscode.workspace.onDidChangeTextDocument((event) => this.onDocumentChanged(event)), vscode.workspace.onDidChangeConfiguration((event) => { if (event.affectsConfiguration('nonebotLocalesViewer')) {this.detectedLocaleDirectories.clear(); this.refresh();} }));
 	}
 
-	refresh(): void { for (const editor of vscode.window.visibleTextEditors) {this.updateEditor(editor);} }
+	refresh(): void { for (const editor of vscode.window.visibleTextEditors) {this.updateEditor(editor);} this.updateLanguageStatus(vscode.window.activeTextEditor); }
 	private onDocumentChanged(event: vscode.TextDocumentChangeEvent): void { if (event.document.languageId === 'python' || /\.ya?ml$/i.test(event.document.fileName)) {this.detectedLocaleDirectories.clear(); this.refresh();} }
 
 	private updateEditor(editor: vscode.TextEditor): void {
@@ -32,7 +35,7 @@ class LocalePreviewManager implements vscode.Disposable {
 		const config = vscode.workspace.getConfiguration('nonebotLocalesViewer', editor.document.uri);
 		const mode = config.get<DisplayMode>('displayMode', 'inline');
 		const previewColor = config.get<string>('previewColor', '').trim() || 'var(--vscode-debugTokenExpression-string)';
-		const locale = this.loadLocale(editor.document.uri, config);
+		const locale = this.loadLocale(editor.document, config);
 		const decorations = this.findKeys(editor.document, config.get<string[]>('replyFunctions', ['reply'])).flatMap(({ range, key }) => {
 			if (mode === 'inline' && range.intersection(editor.selection)) {return [];}
 			const text = this.lookup(locale, key) ?? 'NO TRANSLATION!!!';
@@ -43,11 +46,45 @@ class LocalePreviewManager implements vscode.Disposable {
 		editor.setDecorations(this.afterDecoration, mode === 'after' ? decorations : []);
 	}
 
-	private loadLocale(uri: vscode.Uri, config: vscode.WorkspaceConfiguration): LocaleData {
-		const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath;
-		if (!workspaceFolder) {return {};}
-		const directory = this.resolveLocaleDirectory(uri.fsPath, workspaceFolder, config);
-		return this.readLocale(directory, config.get<string>('language', 'zh_CN'));
+	async selectLanguage(): Promise<void> {
+		const editor = vscode.window.activeTextEditor;
+		const details = editor && this.getLocaleDetails(editor.document);
+		if (!details) {vscode.window.showInformationMessage('NoneBot2 Locales Viewer: no language directory was found for the active file.'); return;}
+		const languages = this.availableLanguages(details.directory);
+		if (languages.length === 0) {vscode.window.showInformationMessage('NoneBot2 Locales Viewer: no YAML language files were found.'); return;}
+		const selected = this.selectedLanguage(details.directory, details.config);
+		const choice = await vscode.window.showQuickPick(languages.map((language) => ({ label: language, picked: language === selected })), { placeHolder: 'Select preview language' });
+		if (!choice) {return;}
+		await this.context.workspaceState.update(this.languageStateKey(details.directory), choice.label);
+		this.refresh();
+	}
+
+	private updateLanguageStatus(editor: vscode.TextEditor | undefined): void {
+		const details = editor && this.getLocaleDetails(editor.document);
+		if (!details || this.availableLanguages(details.directory).length === 0) {this.languageStatus.hide(); return;}
+		const language = this.selectedLanguage(details.directory, details.config);
+		this.languageStatus.text = `$(globe) ${language}`;
+		this.languageStatus.tooltip = `NoneBot2 Locales Viewer\n${details.directory}\nClick to select preview language`;
+		this.languageStatus.show();
+	}
+
+	private loadLocale(document: vscode.TextDocument, config: vscode.WorkspaceConfiguration): LocaleData {
+		const details = this.getLocaleDetails(document, config);
+		return details ? this.readLocale(details.directory, this.selectedLanguage(details.directory, details.config)) : {};
+	}
+	private getLocaleDetails(document: vscode.TextDocument, config = vscode.workspace.getConfiguration('nonebotLocalesViewer', document.uri)): { directory: string; config: vscode.WorkspaceConfiguration } | undefined {
+		if (document.languageId !== 'python') {return undefined;}
+		const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
+		if (!workspaceFolder) {return undefined;}
+		return { directory: this.resolveLocaleDirectory(document.uri.fsPath, workspaceFolder, config), config };
+	}
+	private selectedLanguage(directory: string, config: vscode.WorkspaceConfiguration): string {
+		return this.context.workspaceState.get<string>(this.languageStateKey(directory)) ?? config.get<string>('language', 'zh_CN');
+	}
+	private languageStateKey(directory: string): string {return `language:${path.normalize(directory).toLowerCase()}`;}
+	private availableLanguages(directory: string): string[] {
+		try {return fs.readdirSync(directory).filter((name) => /\.ya?ml$/i.test(name)).map((name) => path.parse(name).name).sort();}
+		catch {return [];}
 	}
 	private resolveLocaleDirectory(file: string, workspaceFolder: string, config: vscode.WorkspaceConfiguration): string {
 		const configured = config.get<string>('localeDirectory', '').trim();
@@ -120,7 +157,7 @@ class LocalePreviewManager implements vscode.Disposable {
 		if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {return value[0];}
 		return undefined;
 	}
-	dispose(): void { this.inlineDecoration.dispose(); this.afterDecoration.dispose(); for (const disposable of this.disposables) {disposable.dispose();} }
+	dispose(): void { this.inlineDecoration.dispose(); this.afterDecoration.dispose(); this.languageStatus.dispose(); for (const disposable of this.disposables) {disposable.dispose();} }
 }
 
 function findPythonCallArguments(source: string, functionName: string): string[] {
@@ -282,8 +319,8 @@ function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	const previews = new LocalePreviewManager();
-	context.subscriptions.push(previews, vscode.commands.registerCommand('nonebotLocalesViewer.refresh', () => previews.refresh()));
+	const previews = new LocalePreviewManager(context);
+	context.subscriptions.push(previews, vscode.commands.registerCommand('nonebotLocalesViewer.refresh', () => previews.refresh()), vscode.commands.registerCommand('nonebotLocalesViewer.selectLanguage', () => previews.selectLanguage()));
 	previews.refresh();
 }
 

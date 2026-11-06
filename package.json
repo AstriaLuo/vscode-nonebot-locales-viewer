@@ -28,7 +28,7 @@
         "nonebotLocalesViewer.language": {
           "type": "string",
           "default": "zh_CN",
-          "markdownDescription": "Locale to preview. Missing locale files or keys display `NO TRANSLATION!!!`."
+          "markdownDescription": "Default selection for a locale directory. Missing locale files or keys display `NO TRANSLATION!!!`."
         },
         "nonebotLocalesViewer.replyFunctions": {
           "type": "array",
@@ -60,6 +60,10 @@
       {
         "command": "nonebotLocalesViewer.refresh",
         "title": "NoneBot2 Locales Viewer: Refresh previews"
+      },
+      {
+        "command": "nonebotLocalesViewer.selectLanguage",
+        "title": "NoneBot2 Locales Viewer: Select preview language"
       }
     ]
   },
